@@ -50,7 +50,7 @@ class Otp(models.Model):
     (5, 'Email Verification'),
     (6, 'Phone Number Change'),
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps",verbose_name="User")
+    phone_number = models.CharField(max_length=15, verbose_name="Phone Number")
     code = models.CharField(max_length=6,verbose_name="OTP Code")
     purpose = models.PositiveSmallIntegerField(choices=OTP_PURPOSE_CHOICES,max_length=30,verbose_name="OTP Purpose")
     created_at = models.DateTimeField(auto_now_add=True,verbose_name="Created At")
@@ -58,4 +58,4 @@ class Otp(models.Model):
     expires_at = models.DateTimeField(verbose_name="Expires At")
 
     def __str__(self):
-        return f"OTP for {self.user.phone} - {self.purpose}"
+        return f"OTP for {self.phone_number} - {self.purpose}"
