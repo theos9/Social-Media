@@ -52,7 +52,7 @@ class Otp(models.Model):
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps",verbose_name="User")
     code = models.CharField(max_length=6,verbose_name="OTP Code")
-    purpose = models.CharField(choices=OTP_PURPOSE_CHOICES,max_length=30,verbose_name="OTP Purpose")
+    purpose = models.PositiveSmallIntegerField(choices=OTP_PURPOSE_CHOICES,max_length=30,verbose_name="OTP Purpose")
     created_at = models.DateTimeField(auto_now_add=True,verbose_name="Created At")
     is_used = models.BooleanField(default=False,verbose_name="Is Used")
     expires_at = models.DateTimeField(verbose_name="Expires At")
