@@ -76,3 +76,55 @@ class UserLoginSerializer(serializers.Serializer):
         return attrs
     def create(self, validated_data):
         return validated_data['user']
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    new_phone_number = serializers.CharField(write_only=True, required=False)
+    otp_code = serializers.CharField(write_only=True, required=False)
+    verify_phone = serializers.BooleanField(write_only=True, required=False)
+
+    class Meta:
+        model = User
+        fields = ['phone','is_phone_verified','first_name','last_name','username','avatar','bio','new_phone_number','otp_code','verify_phone']
+        read_only_fields = ['phone','is_phone_verified']
+
+    def update(self, instance, validated_data):
+        new_phone = validated_data.pop('new_phone_number', None)
+        otp_code = validated_data.pop('otp_code', None)
+        verify_phone = validated_data.pop('verify_phone', False)
+
+        if verify_phone and otp_code:
+            otp_obj = Otp.objects.filter(
+                phone_number=instance.phone,
+                code=otp_code,
+                is_used=False,
+                expires_at__gt=now()
+            ).first()
+
+            if not otp_obj:
+                raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+
+            otp_obj.is_used = True
+            otp_obj.expires_at = now()
+            otp_obj.save()
+            instance.is_phone_verified = True
+
+        if new_phone and otp_code:
+            if not instance.is_phone_verified:
+                raise serializers.ValidationError(
+                    {"detail": "Phone number must be verified before changing it."},
+                    code=status.HTTP_400_BAD_REQUEST
+                )
+            otp_obj = Otp.objects.filter(
+                phone_number=new_phone,
+                code=otp_code,
+                is_used=False,
+                expires_at__gt=now()
+            ).first()
+            if not otp_obj:
+                raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+            otp_obj.is_used = True
+            otp_obj.expires_at = now()
+            otp_obj.save()
+            instance.phone = new_phone
+
+        return super().update(instance, validated_data)
