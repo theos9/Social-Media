@@ -39,16 +39,40 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             expires_at__gt=now()
         ).first()
         if not otp:
-            raise serializers.ValidationError("Invalid or expired OTP.",code=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+        otp.is_used = True
+        otp.expires_at = now()
+        otp.save()
         return attrs
     
     def create(self, validated_data):
-        Otp.objects.update(
-            phone_number=validated_data['phone'],
-            code=validated_data['code'],
-            is_used=True,
-            expires_at=now()
-        )
         validated_data.pop('code')
         user = User.objects.create(**validated_data)
         return user
+    
+class UserLoginSerializer(serializers.Serializer):
+    phone = serializers.CharField()
+    code = serializers.CharField(max_length=6, write_only=True)
+
+    def validate(self, attrs):
+        phone = attrs.get('phone')
+        otp = Otp.objects.filter(
+            phone_number=phone,
+            code=attrs['code'],
+            is_used=False,
+            expires_at__gt=now()
+        ).first()
+        try:
+            user = User.objects.get(phone=phone, is_active=True)
+            attrs['user'] = user
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"detail":"User not found or inactive."}, code=status.HTTP_404_NOT_FOUND)
+        if not otp:
+            raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+
+        otp.is_used = True
+        otp.expires_at = now()
+        otp.save()
+        return attrs
+    def create(self, validated_data):
+        return validated_data['user']
