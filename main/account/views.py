@@ -1,9 +1,10 @@
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import OtpRequestSerializer , UserRegisterSerializer , UserLoginSerializer
-from .models import Otp
+from .serializers import OtpRequestSerializer , UserRegisterSerializer , UserLoginSerializer , UserProfileSerializer
+from .models import Otp, User
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 
 class OtpRequestView(generics.CreateAPIView):
     queryset = Otp.objects.all()
@@ -24,3 +25,9 @@ class UserLoginView(generics.CreateAPIView):
             "refresh": str(refresh),
             "access": str(refresh.access_token)
         },status=status.HTTP_200_OK)
+    
+class UserProfileView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+    def get_object(self):
+        return self.request.user
