@@ -79,13 +79,23 @@ class UserLoginSerializer(serializers.Serializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     new_phone_number = serializers.CharField(write_only=True, required=False)
-    otp_code = serializers.CharField(write_only=True, required=False)
+    otp_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
     verify_phone = serializers.BooleanField(write_only=True, required=False)
 
     class Meta:
         model = User
         fields = ['phone','is_phone_verified','first_name','last_name','username','avatar','bio','new_phone_number','otp_code','verify_phone']
         read_only_fields = ['phone','is_phone_verified']
+
+    def validate(self, attrs):
+        if attrs.get("username"):
+            if User.objects.filter(username=attrs["username"]).exists():
+                raise serializers.ValidationError({"detail": "Username already exists."}, code=status.HTTP_400_BAD_REQUEST)
+        if attrs.get('verify_phone') and not attrs.get('otp_code'):
+            raise serializers.ValidationError({"detail": "OTP code is required for phone verification."}, code=status.HTTP_400_BAD_REQUEST)
+        if attrs.get('new_phone_number') and not attrs.get('otp_code'):
+            raise serializers.ValidationError({"detail": "OTP code is required for phone number change."}, code=status.HTTP_400_BAD_REQUEST)
+        return super().validate(attrs)
 
     def update(self, instance, validated_data):
         new_phone = validated_data.pop('new_phone_number', None)
