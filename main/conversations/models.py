@@ -32,3 +32,37 @@ class Conversation(models.Model):
 
     def __str__(self):
         return self.title or f"{self.get_type_display()} Chat"
+    
+class ConversationMember(models.Model):
+    ROLE_CHOICES = [
+        ('member', 'Member'),
+        ('admin', 'Admin'),
+        ('owner', 'Owner'),
+        ('moderator', 'Moderator'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="members"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="conversation_memberships"
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    joined_at = models.DateTimeField(auto_now_add=True)
+    muted_until = models.DateTimeField(null=True, blank=True)
+    permissions = models.JSONField(null=True, blank=True)
+    is_banned = models.BooleanField(default=False)
+    last_read_message_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('conversation', 'user')
+        indexes = [
+            models.Index(fields=['conversation', 'user']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} in {self.conversation} as {self.role}"
