@@ -18,6 +18,7 @@ class MessageSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class ConversationDetailSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format='hex', read_only=True)
     members = ConversationMemberSerializer(many=True, read_only=True)
     messages = MessageSerializer(many=True, read_only=True)
 
@@ -25,6 +26,12 @@ class ConversationDetailSerializer(serializers.ModelSerializer):
         model = Conversation
         fields = ['id', 'title', 'type', 'creator', 'is_public', 'created_at', 'updated_at', 'members', 'messages']
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'creator': {'required': False},
+            'type': {'required': False},
+            'is_public': {'required': False},
+        }
+        
 
 class ConversationListSerializer(serializers.ModelSerializer):
     class Meta:
