@@ -1,7 +1,7 @@
 from djangochannelsrestframework.generics import GenericAsyncAPIConsumer
 from djangochannelsrestframework import permissions, mixins
 from .models import Conversation , ConversationMember , Message
-from .serializers import ConversationListSerializer , ConversationDetailSerializer , ConversationMemberSerializer 
+from .serializers import ConversationListSerializer , ConversationDetailSerializer , ConversationMemberSerializer , SendMessageSerializer
 import json
 from django.core.serializers.json import DjangoJSONEncoder
 
@@ -21,3 +21,16 @@ class ConversationDetailConsumer(mixins.RetrieveModelMixin, mixins.UpdateModelMi
     def get_queryset(self, **kwargs):
         user = self.scope["user"]
         return Conversation.objects.filter(creator=user)
+
+class MessageConsumer(mixins.CreateModelMixin, GenericAsyncAPIConsumer):
+    queryset = Message.objects.all()
+    serializer_class = SendMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    async def encode_json(self, content):
+        return json.dumps(content, cls=DjangoJSONEncoder)
+
+    def perform_create(self, serializer, **kwargs):
+        serializer.context['request'] = type('Request', (), {'user': self.scope["user"]})
+        return super().perform_create(serializer)
+
