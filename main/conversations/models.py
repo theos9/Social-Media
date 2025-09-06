@@ -67,7 +67,8 @@ class ConversationMember(models.Model):
     def __str__(self):
         return f"{self.user} in {self.conversation} as {self.role}"
     
-
+def message_attachment_path(instance, filename):
+    return f"chat_attachments/{instance.conversation.id}/{filename}"
 class Message(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     conversation = models.ForeignKey(
@@ -78,7 +79,7 @@ class Message(models.Model):
     )
     receiver = models.ForeignKey(settings.AUTH_USER_MODEL,null=True,blank=True,on_delete=models.CASCADE,related_name='received_messages')
     content = models.TextField(blank=True)
-    attachment = models.FileField(upload_to='chat_attachments/', null=True, blank=True)
+    attachment = models.FileField(upload_to=message_attachment_path, null=True, blank=True)
     reply_to = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name="replies"
     )
