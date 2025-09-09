@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'conversations',
     'rest_framework',
     'rest_framework_simplejwt',
+    'channels',
 ]
 
 REST_FRAMEWORK = {
@@ -79,7 +80,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'main.wsgi.application'
+# WSGI_APPLICATION = 'main.wsgi.application'
+ASGI_APPLICATION = 'main.asgi.application'
 
 
 
