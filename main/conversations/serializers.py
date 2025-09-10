@@ -59,4 +59,3 @@ class ConversationSerializer(serializers.ModelSerializer):
             ConversationMember.objects.create(conversation=conversation, **member_data)
 
         return conversation
-
