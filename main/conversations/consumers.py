@@ -67,5 +67,52 @@ class ConversationConsumer(GenericAsyncAPIConsumer,mixins.ListModelMixin,mixins.
             request_id=request_id
         )
 
-
+    @action()
+    async def remove_member(self, request_id, conversation_id=None, user_id=None, **kwargs):
+        try:
+            UUID(str(conversation_id), version=4)
+        except ValueError:
+            return await self.reply(
+                action="add_member",
+                data={"message": "Invalid conversation_id"},
+                request_id=request_id
+            )
+        try:
+            conversation = await database_sync_to_async(Conversation.objects.get)(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return await self.reply(
+            action="add_member",
+            data={"message":"Conversation not found"},
+            request_id=request_id
+        )
+        try:
+            member = await database_sync_to_async(ConversationMember.objects.get)(
+                conversation=conversation, user=self.scope["user"]
+            )
+        except ValueError:
+            return await self.reply(action="add_member",data={"message":"you are not in this conversation"},request_id=request_id)        
+        if member.role not in ["owner", "admin"]:
+            return await self.reply(action="add_member",data={"message":"Permission denied"},request_id=request_id)
+        try:
+            user = await database_sync_to_async(User.objects.get)(id=user_id)
+        except User.DoesNotExist:
+            return await self.reply(
+                action="add_member",
+                data={"message": "User not found"},
+                request_id=request_id
+            )
+        if not await database_sync_to_async(ConversationMember.objects.filter(conversation=conversation, user=user).exists)():
+            return await self.reply(
+                action="add_member",
+                data={"message": "User is not a member of this conversation"},
+                request_id=request_id
+            )
+        await database_sync_to_async(ConversationMember.objects.filter(
+            conversation=conversation, user=user
+        ).delete)()
+        await self.reply(
+            action="remove_member",
+            data={"message": f"User {user_id} removed from conversation {conversation_id}"},
+            request_id=request_id
+        )
 
