@@ -9,6 +9,7 @@ from channels.db import database_sync_to_async
 from uuid import UUID
 from django.core.serializers.json import DjangoJSONEncoder
 import json
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 class ConversationConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixins.CreateModelMixin,
                            mixins.RetrieveModelMixin, mixins.DeleteModelMixin):
@@ -132,6 +133,20 @@ class MessageConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixins.Cre
 
     def get_queryset(self, **kwargs):
         user = self.scope["user"]
+        action = kwargs.get("action", None)
+        if action == "list":
+            conversation_id = kwargs.get("conversation_id")
+
+            if not conversation_id:
+                raise ValidationError("conversation_id is required.")
+
+            if not ConversationMember.objects.filter(
+                conversation_id=conversation_id,
+                user=user
+            ).exists():
+                raise PermissionDenied("You are not a member of this conversation.")
+
+            return Message.objects.filter(conversation=conversation_id, is_deleted=False)
         return Message.objects.filter(
             conversation__members__user=user,
             sender=user,
