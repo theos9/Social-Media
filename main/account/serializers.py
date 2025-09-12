@@ -1,7 +1,8 @@
-from .models import User , Otp
-from rest_framework import serializers , status
+from .models import User, Otp, Contact
+from rest_framework import serializers, status
 import random
-from django.utils.timezone import now , timedelta
+from django.utils.timezone import now, timedelta
+
 
 class OtpRequestSerializer(serializers.ModelSerializer):
 
@@ -24,8 +25,9 @@ class OtpRequestSerializer(serializers.ModelSerializer):
         print(code)
         return otp
 
+
 class UserRegisterSerializer(serializers.ModelSerializer):
-    code = serializers.CharField(max_length=6,write_only=True)
+    code = serializers.CharField(max_length=6, write_only=True)
 
     class Meta:
         model = User
@@ -39,17 +41,19 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             expires_at__gt=now()
         ).first()
         if not otp:
-            raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError(
+                {"detail": "Invalid or expired OTP."}, code=status.HTTP_400_BAD_REQUEST)
         otp.is_used = True
         otp.expires_at = now()
         otp.save()
         return attrs
-    
+
     def create(self, validated_data):
         validated_data.pop('code')
         user = User.objects.create(**validated_data)
         return user
-    
+
+
 class UserLoginSerializer(serializers.Serializer):
     phone = serializers.CharField()
     code = serializers.CharField(max_length=6, write_only=True)
@@ -66,35 +70,44 @@ class UserLoginSerializer(serializers.Serializer):
             user = User.objects.get(phone=phone, is_active=True)
             attrs['user'] = user
         except User.DoesNotExist:
-            raise serializers.ValidationError({"detail":"User not found or inactive."}, code=status.HTTP_404_NOT_FOUND)
+            raise serializers.ValidationError(
+                {"detail": "User not found or inactive."}, code=status.HTTP_404_NOT_FOUND)
         if not otp:
-            raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError(
+                {"detail": "Invalid or expired OTP."}, code=status.HTTP_400_BAD_REQUEST)
 
         otp.is_used = True
         otp.expires_at = now()
         otp.save()
         return attrs
+
     def create(self, validated_data):
         return validated_data['user']
 
+
 class UserProfileSerializer(serializers.ModelSerializer):
     new_phone_number = serializers.CharField(write_only=True, required=False)
-    otp_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    otp_code = serializers.CharField(
+        write_only=True, required=False, allow_blank=True)
     verify_phone = serializers.BooleanField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ['phone','is_phone_verified','first_name','last_name','username','avatar','bio','new_phone_number','otp_code','verify_phone']
-        read_only_fields = ['phone','is_phone_verified']
+        fields = ['phone', 'is_phone_verified', 'first_name', 'last_name',
+                  'username', 'avatar', 'bio', 'new_phone_number', 'otp_code', 'verify_phone']
+        read_only_fields = ['phone', 'is_phone_verified']
 
     def validate(self, attrs):
         if attrs.get("username"):
             if User.objects.filter(username=attrs["username"]).exists():
-                raise serializers.ValidationError({"detail": "Username already exists."}, code=status.HTTP_400_BAD_REQUEST)
+                raise serializers.ValidationError(
+                    {"detail": "Username already exists."}, code=status.HTTP_400_BAD_REQUEST)
         if attrs.get('verify_phone') and not attrs.get('otp_code'):
-            raise serializers.ValidationError({"detail": "OTP code is required for phone verification."}, code=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError(
+                {"detail": "OTP code is required for phone verification."}, code=status.HTTP_400_BAD_REQUEST)
         if attrs.get('new_phone_number') and not attrs.get('otp_code'):
-            raise serializers.ValidationError({"detail": "OTP code is required for phone number change."}, code=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError(
+                {"detail": "OTP code is required for phone number change."}, code=status.HTTP_400_BAD_REQUEST)
         return super().validate(attrs)
 
     def update(self, instance, validated_data):
@@ -111,7 +124,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             ).first()
 
             if not otp_obj:
-                raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+                raise serializers.ValidationError(
+                    {"detail": "Invalid or expired OTP."}, code=status.HTTP_400_BAD_REQUEST)
 
             otp_obj.is_used = True
             otp_obj.expires_at = now()
@@ -131,10 +145,41 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 expires_at__gt=now()
             ).first()
             if not otp_obj:
-                raise serializers.ValidationError({"detail":"Invalid or expired OTP."},code=status.HTTP_400_BAD_REQUEST)
+                raise serializers.ValidationError(
+                    {"detail": "Invalid or expired OTP."}, code=status.HTTP_400_BAD_REQUEST)
             otp_obj.is_used = True
             otp_obj.expires_at = now()
             otp_obj.save()
             instance.phone = new_phone
 
         return super().update(instance, validated_data)
+
+
+class ContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'owner_id', 'contact_user_id']
+
+    def validate(self, attrs):
+        owner = self.context['request'].user
+        user = User.objects.filter(phone=attrs.get('phone_number')).first()
+        exist = Contact.objects.filter(
+            owner_id=owner, contact_user_id=user).exists()
+
+        if not attrs.get('display_name'):
+            raise serializers.ValidationError(
+                {"detail": "Display name is required."}, code=status.HTTP_400_BAD_REQUEST)
+        if not attrs.get('phone_number'):
+            raise serializers.ValidationError(
+                {"detail": "Phone number is required."}, code=status.HTTP_400_BAD_REQUEST)
+        if not user:
+            raise serializers.ValidationError(
+                {"detail": "User with this phone number does not exist."}, code=status.HTTP_400_BAD_REQUEST)
+        if exist:
+            raise serializers.ValidationError(
+                {"detail": "Contact with this user already exists."}, code=status.HTTP_400_BAD_REQUEST)
+        attrs['owner_id'] = owner
+        attrs['contact_user_id'] = user
+
+        return super().validate(attrs)
