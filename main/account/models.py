@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+import uuid
+
 
 class UserManager(BaseUserManager):
     def create_user(self, phone, password=None, **extra_fields):
@@ -21,15 +23,23 @@ class UserManager(BaseUserManager):
 
         return self.create_user(phone, password, **extra_fields)
 
+
 class User(AbstractBaseUser, PermissionsMixin):
-    phone = models.CharField(max_length=15, unique=True , verbose_name="Phone Number")
-    is_phone_verified = models.BooleanField(default=False, verbose_name="Is Phone Verified")
-    first_name = models.CharField(max_length=30, verbose_name="First Name" , null=True, blank=True)
-    last_name = models.CharField(max_length=30, verbose_name="Last Name" , null=True, blank=True)
-    username = models.CharField(max_length=30, unique=True, verbose_name="Username" , null=True, blank=True)
-    avatar = models.ImageField(upload_to='avatars/', verbose_name="Avatar", null=True, blank=True)
+    phone = models.CharField(max_length=15, unique=True,
+                             verbose_name="Phone Number")
+    is_phone_verified = models.BooleanField(
+        default=False, verbose_name="Is Phone Verified")
+    first_name = models.CharField(
+        max_length=30, verbose_name="First Name", null=True, blank=True)
+    last_name = models.CharField(
+        max_length=30, verbose_name="Last Name", null=True, blank=True)
+    username = models.CharField(
+        max_length=30, unique=True, verbose_name="Username", null=True, blank=True)
+    avatar = models.ImageField(
+        upload_to='avatars/', verbose_name="Avatar", null=True, blank=True)
     bio = models.TextField(verbose_name="Bio", null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Created At")
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Created At")
     is_active = models.BooleanField(default=True, verbose_name="Is Active")
     is_staff = models.BooleanField(default=False, verbose_name="Is Staff")
 
@@ -40,22 +50,41 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.phone
-    
+
+
 class Otp(models.Model):
     OTP_PURPOSE_CHOICES = [
-    (1, 'Password Reset'),
-    (2, 'Register'),
-    (3, 'Login'),
-    (4, 'Two-Factor Authentication'),
-    (5, 'Email Verification'),
-    (6, 'Phone Number Change'),
+        (1, 'Password Reset'),
+        (2, 'Register'),
+        (3, 'Login'),
+        (4, 'Two-Factor Authentication'),
+        (5, 'Email Verification'),
+        (6, 'Phone Number Change'),
     ]
     phone_number = models.CharField(max_length=15, verbose_name="Phone Number")
-    code = models.CharField(max_length=6,verbose_name="OTP Code")
-    purpose = models.PositiveSmallIntegerField(choices=OTP_PURPOSE_CHOICES,max_length=30,verbose_name="OTP Purpose")
-    created_at = models.DateTimeField(auto_now_add=True,verbose_name="Created At")
-    is_used = models.BooleanField(default=False,verbose_name="Is Used")
+    code = models.CharField(max_length=6, verbose_name="OTP Code")
+    purpose = models.PositiveSmallIntegerField(
+        choices=OTP_PURPOSE_CHOICES, max_length=30, verbose_name="OTP Purpose")
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Created At")
+    is_used = models.BooleanField(default=False, verbose_name="Is Used")
     expires_at = models.DateTimeField(verbose_name="Expires At")
 
     def __str__(self):
         return f"OTP for {self.phone_number} - {self.purpose}"
+
+
+class Contact(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4,
+                          editable=False, verbose_name="ID")
+    owner_id = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="owner", verbose_name="Owner")
+    contact_user_id = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="contact_user", verbose_name="Contact User")
+    display_name = models.CharField(max_length=100, verbose_name="Name")
+    phone_number = models.CharField(max_length=15, verbose_name="Phone Number")
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Created At")
+
+    def __str__(self):
+        return self.display_name
