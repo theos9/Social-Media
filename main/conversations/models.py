@@ -54,7 +54,10 @@ class ConversationMember(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     joined_at = models.DateTimeField(auto_now_add=True)
     muted_until = models.DateTimeField(null=True, blank=True)
-    permissions = models.JSONField(null=True, blank=True)
+    permissions = models.JSONField(default={
+    "can_send": True,
+    "can_invite": False,
+    "can_delete": False},null=True, blank=True)
     is_banned = models.BooleanField(default=False)
     last_read_message_id = models.UUIDField(null=True, blank=True)
 
