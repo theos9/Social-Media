@@ -106,7 +106,10 @@ class MessageSerializer(serializers.ModelSerializer):
             conversation = Conversation.objects.get(id=conversation_id)
         except Conversation.DoesNotExist:
             raise serializers.ValidationError("Conversation not found.",code=status.HTTP_404_NOT_FOUND)
-
+        member = ConversationMember.objects.filter(conversation=conversation,user=sender).first()
+        if not member.permissions.get("can_send", False):
+            raise serializers.ValidationError("You don't have permission to send messages in this conversation.",code=status.HTTP_403_FORBIDDEN)
+        
         if not content and not attachment:
             raise serializers.ValidationError(
                 "Message must have either content or an attachment.",code=status.HTTP_400_BAD_REQUEST
@@ -125,8 +128,16 @@ class MessageSerializer(serializers.ModelSerializer):
         return message
 
     def update(self, instance, validated_data):
+        user = self.context["user"]
+        conversation = instance.conversation
+        member = ConversationMember.objects.get(
+                conversation=conversation, user=user
+            )
         if validated_data.get("delete", False):
-            instance.is_deleted = True
+            if member.permissions.get("can_delete", False):
+                instance.is_deleted = True
+            else:
+                raise serializers.ValidationError("You don't have permission to delete messages in this conversation.",code=status.HTTP_403_FORBIDDEN)
         else:
             instance.content = validated_data.get("content", instance.content)
             instance.is_edited = True
