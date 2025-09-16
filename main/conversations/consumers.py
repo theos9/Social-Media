@@ -50,6 +50,8 @@ class ConversationConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixin
             return await self.reply(action="add_member", data={"message": "you are not in this conversation"}, request_id=request_id)
         if member.role not in ["owner", "admin"]:
             return await self.reply(action="add_member", data={"message": "Permission denied"}, request_id=request_id)
+        if not member.permissions.get("can_invite", False):
+            return await self.reply(action="add_member", data={"message": "You don't have permission to add members"}, request_id=request_id)
         try:
             user = await database_sync_to_async(User.objects.get)(id=user_id)
         except User.DoesNotExist:
@@ -139,12 +141,15 @@ class MessageConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixins.Cre
 
             if not conversation_id:
                 raise ValidationError("conversation_id is required.")
-
-            if not ConversationMember.objects.filter(
+            member = ConversationMember.objects.filter(
                 conversation_id=conversation_id,
                 user=user
-            ).exists():
+            )
+
+            if not member.exists():
                 raise PermissionDenied("You are not a member of this conversation.")
+            if member.is_banned:
+                raise PermissionDenied("You are banned from this conversation.")
 
             return Message.objects.filter(conversation=conversation_id, is_deleted=False)
         return Message.objects.filter(
