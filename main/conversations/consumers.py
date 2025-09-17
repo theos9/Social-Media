@@ -148,10 +148,14 @@ class MessageConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixins.Cre
 
             if not member.exists():
                 raise PermissionDenied("You are not a member of this conversation.")
-            if member.is_banned:
+            if member.first().is_banned:
                 raise PermissionDenied("You are banned from this conversation.")
+            messages = Message.objects.filter(conversation=conversation_id, is_deleted=False)
 
-            return Message.objects.filter(conversation=conversation_id, is_deleted=False)
+            for msg in messages:
+                msg.seen_by.add(member.first().user)
+            return messages
+        
         return Message.objects.filter(
             conversation__members__user=user,
             sender=user,
