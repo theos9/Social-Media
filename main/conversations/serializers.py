@@ -109,7 +109,8 @@ class MessageSerializer(serializers.ModelSerializer):
         member = ConversationMember.objects.filter(conversation=conversation,user=sender).first()
         if not member.permissions.get("can_send", False):
             raise serializers.ValidationError("You don't have permission to send messages in this conversation.",code=status.HTTP_403_FORBIDDEN)
-        
+        if conversation.type == "channel" and member.role != "owner" and member.role != "admin":
+            raise serializers.ValidationError("Only admins and owners can send messages in a channel.",code=status.HTTP_403_FORBIDDEN)
         if not content and not attachment:
             raise serializers.ValidationError(
                 "Message must have either content or an attachment.",code=status.HTTP_400_BAD_REQUEST
