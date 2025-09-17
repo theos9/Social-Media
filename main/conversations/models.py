@@ -59,7 +59,6 @@ class ConversationMember(models.Model):
     "can_invite": False,
     "can_delete": False},null=True, blank=True)
     is_banned = models.BooleanField(default=False)
-    last_read_message_id = models.UUIDField(null=True, blank=True)
 
     class Meta:
         unique_together = ('conversation', 'user')
@@ -84,6 +83,10 @@ class Message(models.Model):
     attachment = models.FileField(upload_to=message_attachment_path, null=True, blank=True)
     reply_to = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name="replies"
+    )
+    seen_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="seen_messages"
     )
     is_edited = models.BooleanField(default=False)
     is_deleted = models.BooleanField(default=False)
