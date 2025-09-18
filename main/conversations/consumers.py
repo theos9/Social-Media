@@ -17,7 +17,16 @@ class ConversationConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixin
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self, **kwargs):
-        return Conversation.objects.filter(members__user=self.scope["user"])
+        search = kwargs.get("search")
+        action = kwargs.get("action")
+        page = int(kwargs.get("page", 1))
+        page_size = 10
+        conv = Conversation.objects.filter(members__user=self.scope["user"])
+        if action == "list" and search:
+            conv = conv.filter(title__icontains=search)
+        start = (page - 1) * page_size
+        end = start + page_size
+        return conv[start:end]
 
     def get_serializer_context(self, *args, **kwargs):
         context = super().get_serializer_context(*args, **kwargs)
@@ -136,6 +145,9 @@ class MessageConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixins.Cre
     def get_queryset(self, **kwargs):
         user = self.scope["user"]
         action = kwargs.get("action", None)
+        search = kwargs.get("search")
+        page = int(kwargs.get("page", 1))
+        page_size = 10
         if action == "list":
             conversation_id = kwargs.get("conversation_id")
 
@@ -154,8 +166,12 @@ class MessageConsumer(GenericAsyncAPIConsumer, mixins.ListModelMixin, mixins.Cre
 
             for msg in messages:
                 msg.seen_by.add(member.first().user)
-            return messages
-        
+            if search:
+                messages = messages.filter(content__icontains=search)
+            start = (page - 1) * page_size
+            end = start + page_size
+            return messages[start:end]
+
         return Message.objects.filter(
             conversation__members__user=user,
             sender=user,
